@@ -9,7 +9,7 @@
 import UIKit
 import CoreData
 
-class MainDocumentViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UISearchController, UISearchResultsUpdating, UISearchBarDelegate {
+class MainDocumentViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UISearchResultsUpdating, UISearchBarDelegate {
    
     
     @IBOutlet weak var docTableView: UITableView!
@@ -17,9 +17,6 @@ class MainDocumentViewController: UIViewController, UITableViewDelegate, UITable
     var doc = [Document]()
     var searchControll : UISearchController?
     var selectedSearch = Search.everything
-    
-    
-    
     
     
     override func viewDidLoad() {
@@ -36,6 +33,7 @@ class MainDocumentViewController: UIViewController, UITableViewDelegate, UITable
         searchControll?.searchBar.placeholder = "Search"
         
         navigationItem.searchController = searchControll
+        navigationItem.hidesSearchBarWhenScrolling = false
         definesPresentationContext = true
         searchControll?.searchBar.scopeButtonTitles = Search.title
         searchControll?.searchBar.delegate = self
@@ -81,27 +79,47 @@ class MainDocumentViewController: UIViewController, UITableViewDelegate, UITable
     
     
    
-    func fetchDocs() {
+    func fetchDocs(search: String) {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
             return
         }
         let manageContext = appDelegate.persistentContainer.viewContext
         let fetchRequest: NSFetchRequest<Document> = Document.fetchRequest() as! NSFetchRequest<Document>
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending:  true)]
+        
         do {
+            if(search != "") {
+                switch  (selectedSearch) {
+                case .everything:
+                    fetchRequest.predicate = NSPredicate(format: "name contains[c] %@ OR content contains[c] %@", search, search)
+                case .name:
+                    fetchRequest.predicate = NSPredicate(format: "name contains[c] %@", search)
+                case .content:
+                    fetchRequest.predicate = NSPredicate(format: "content contains[c] %@", search)
+                    
+                }
+            }
             doc = try manageContext.fetch(fetchRequest)
-        } catch {
-            alertNotifyUser(message: "Fetch for documents was not performed.")
-            return
+            docTableView.reloadData()
+            
+        }
+        catch{
+            print("Fetch was not performed")
         }
     }
     
-    
-    
-    
-    
-    
-    
-    
+    func updateSearchResults(for searchController: UISearchController) {
+        if let searchString = searchController.searchBar.text {
+            fetchDocs(search: searchString)
+        }
+    }
+
+    func searchBar(_ searchBar: UISearchBar, selectedScopeButtonIndexDidChange selectedScope: Int) {
+        selectedSearch = Search.lookfor[selectedScope]
+        if let searchString = searchControll?.searchBar.text {
+            fetchDocs(search: searchString)
+        }
+    }
     
     
     func deleteDoc(at indexPath: IndexPath) {
@@ -142,7 +160,7 @@ class MainDocumentViewController: UIViewController, UITableViewDelegate, UITable
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        fetchDocs()
+        fetchDocs(search: "")
         docTableView.reloadData()
     }
     
@@ -152,14 +170,5 @@ class MainDocumentViewController: UIViewController, UITableViewDelegate, UITable
 }
 
 
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-    }
-    */
 
 
